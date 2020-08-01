@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="author" content="Foodtrucktoday">
+    <link rel="icon" href="/docs/4.0/assets/img/favicons/favicon.ico">
+    <title>Serveur API foodtrucktoday.fr</title>
+    <style>
+        * {
+            transition: all 0.6s;
+        }
+
+        html {
+            height: 100%;
+            background-color: #ee6e73;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            color: #fff;
+            margin: 0;
+        }
+
+        #main {
+            display: table;
+            width: 100%;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .fof {
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        .fof h2 {
+            font-size: 50px;
+            display: inline-block;
+            padding-right: 12px;
+            animation: type .5s alternate infinite;
+        }
+
+        @keyframes type {
+            from {
+                box-shadow: inset -3px 0px 0px #fff;
+            }
+            to {
+                box-shadow: inset -3px 0px 0px transparent;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="main">
+    <div class="fof">
+        <h1 style="text-align:center;">Serveur API Foodtrucktoday.fr</h1>
+        <img src="{{ url_for('static', filename='logo_keppel.svg') }}" height="30%"><br>
+        <h2>Erreur : le service demandé n'est pas accessible</h2>
+    </div>
+</div>
+</body>
+</html>
