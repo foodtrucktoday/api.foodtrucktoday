@@ -27,20 +27,35 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import os
 
 from model import Model
 from flask import *
+from flask_httpauth import HTTPDigestAuth
+import dotenv
+import json
+
+dotenv.load_dotenv()  # for python-dotenv method
 
 # Create flask application
 app = Flask(__name__)
+app.config['SECRET_KEY'] = '817C38A0721CE4E8FD8E340FEFBE247E78B2A4'
 app.config['DEBUG'] = True
+# Define all routes (URL)
+auth = HTTPDigestAuth()
+
+users = json.loads(os.environ.get('api_users'))
 
 
 # Define all routes (URL)
+@auth.get_password
+def get_pw(username):
+    if username in users:
+        return users.get(username)
+    return None
+
 
 # defintion de la page d'accueil
-
-
 @app.route('/index.html', methods=['GET', 'POST'])  # / is the URL
 @app.route('/accueil/', methods=['GET', 'POST'])  # / is the URL
 @app.route('/', methods=['GET', 'POST'])  # / is the URL
@@ -49,6 +64,7 @@ def index():
 
 
 @app.route('/day/<id>/', methods=['GET', 'POST'])  # / is the URL
+@auth.login_required
 def Day_Selector(id):
     with Model() as model:
         requestReturn = model.GetFoodtruckDay(id)  # appel de la requete sql
@@ -57,12 +73,12 @@ def Day_Selector(id):
 
 
 @app.route('/all/', methods=['GET', 'POST'])  # / is the URL
+@auth.login_required
 def All_Foodtruck():
     with Model() as model:
         requestReturn = model.GetAllFoodtruck()  # appel de la requete sql
 
     return jsonify(requestReturn)
-
 
 # main application
 if __name__ == '__main__':
