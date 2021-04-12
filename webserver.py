@@ -31,21 +31,24 @@ import os
 
 from model import Model
 from flask import *
-from flask_httpauth import HTTPDigestAuth
+from flask_httpauth import HTTPBasicAuth
 import dotenv
 import json
+import requests
+import re
+import mimetypes
 
 dotenv.load_dotenv()  # for python-dotenv method
 
 # Create flask application
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '817C38A0721CE4E8FD8E340FEFBE247E78B2A4'
-app.config['DEBUG'] = True
 # Define all routes (URL)
-auth = HTTPDigestAuth()
+auth = HTTPBasicAuth()
 
+print(os.environ.get('api_users'))
 users = json.loads(os.environ.get('api_users'))
-
+mimetypes.add_type('image/svg+xml', '.svg')
 
 # Define all routes (URL)
 @auth.get_password
@@ -79,6 +82,35 @@ def All_Foodtruck():
         requestReturn = model.GetAllFoodtruck()  # appel de la requete sql
 
     return jsonify(requestReturn)
+    
+@app.route('/places/<place>/day/<dayid>/', methods=['GET', 'POST'])  # / is the URL
+@auth.login_required
+def GetPlacesIDandDayId(place, dayid):
+    with Model() as model:
+        requestReturn = model.GetFoodtruckByPlaceByDay(place, dayid)  # appel de la requete sql
+
+    return jsonify(requestReturn)
+    
+@app.route('/icon/<id>/<color>/')
+@app.route('/icons/<id>/<color>/')
+def getIcon(id, color):
+
+    r = requests.get('https://static.foodtrucktoday.fr/images/icons/' + str(id) + '.svg')
+    print('https://static.foodtrucktoday.fr/images/icons/' + str(id) + '.svg')
+    if r.status_code == 200:
+        if color:
+            print('OK')
+            data = re.sub(' xmlns="[^"]+"', '', r.content.decode('utf-8'), count=1)
+            print(data)
+            newdata = data.replace('<path', '<path fill="#' + color + '" stroke="#' + color + '"')
+            print(newdata)
+            return Response(newdata, mimetype='image/svg+xml')
+        else:
+            return 'no color', 400
+
+    else:
+        return 'no icon', 404
+
 
 # main application
 if __name__ == '__main__':
