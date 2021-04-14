@@ -37,6 +37,7 @@ import json
 import requests
 import re
 import mimetypes
+from itertools import groupby
 
 dotenv.load_dotenv()  # for python-dotenv method
 
@@ -46,9 +47,11 @@ app.config['SECRET_KEY'] = '817C38A0721CE4E8FD8E340FEFBE247E78B2A4'
 # Define all routes (URL)
 auth = HTTPBasicAuth()
 
-print(os.environ.get('api_users'))
+#print(os.environ.get('api_users'))
 users = json.loads(os.environ.get('api_users'))
+
 mimetypes.add_type('image/svg+xml', '.svg')
+
 
 # Define all routes (URL)
 @auth.get_password
@@ -82,7 +85,8 @@ def All_Foodtruck():
         requestReturn = model.GetAllFoodtruck()  # appel de la requete sql
 
     return jsonify(requestReturn)
-    
+
+
 @app.route('/places/<place>/day/<dayid>/', methods=['GET', 'POST'])  # / is the URL
 @auth.login_required
 def GetPlacesIDandDayId(place, dayid):
@@ -90,11 +94,70 @@ def GetPlacesIDandDayId(place, dayid):
         requestReturn = model.GetFoodtruckByPlaceByDay(place, dayid)  # appel de la requete sql
 
     return jsonify(requestReturn)
-    
+
+
+@app.route('/v2/<latitude>/<longitude>/<dayid>/', methods=['GET', 'POST'])  # / is the URL
+@auth.login_required
+def apiV2(latitude, longitude, dayid):
+    with Model() as model:
+        latitude = float(latitude)
+        longitude = float(longitude)
+
+        requestReturn = model.apiv2(latitude, longitude, dayid)  # appel de la requete sql
+
+        # then use groupby with the same key
+        groups = groupby(requestReturn, lambda content: content['pl_id'])
+
+        result = ""
+
+        result += "["
+        j = 0
+
+        for pl_id, group in groups:
+            if j > 0:
+                result += ','
+
+            requestPlId = model.getPlacebyid(pl_id)
+            parsePlId = requestPlId[0]
+            result += str('{"pl_name":')
+            result += str(parsePlId['pl_name'])
+            result += str(',"pl_id":')
+            result += str(parsePlId['pl_id'])
+            result += str(',"pl_address":"')
+            result += str(parsePlId['pl_address'].replace('\r\n', ','))
+            result += str('","pl_latitude":')
+            result += str(parsePlId['pl_latitude'])
+            result += str(',"pl_longitude":')
+            result += str(parsePlId['pl_longitude'])
+
+            result += str(',"foodtrucks":[')
+
+            i = 0
+            for content in group:
+                print(content)
+                if i > 0:
+                    result += ','
+
+                result += '\t'
+                result += str(content)
+                i += 1
+
+            result += ']}'
+            j += 1
+
+        result += "]"
+
+    response = app.response_class(
+        response=result,
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
+
 @app.route('/icon/<id>/<color>/')
 @app.route('/icons/<id>/<color>/')
 def getIcon(id, color):
-
     r = requests.get('https://static.foodtrucktoday.fr/images/icons/' + str(id) + '.svg')
     print('https://static.foodtrucktoday.fr/images/icons/' + str(id) + '.svg')
     if r.status_code == 200:
