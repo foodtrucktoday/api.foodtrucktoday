@@ -1,32 +1,5 @@
-#  Copyright (c) 2020 Romain ODET
-#
-#      This program is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
-#
-#      This program is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
-#
-#      You should have received a copy of the GNU General Public License
-#      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#  Copyright (c) 2021 Romain ODET for Foodtruck Today
 
-#  Copyright (c) 2020 Romain ODET
-#
-#      This program is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
-#
-#      This program is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
-#
-#      You should have received a copy of the GNU General Public License
-#      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 from model import Model
@@ -47,7 +20,7 @@ app.config['SECRET_KEY'] = '817C38A0721CE4E8FD8E340FEFBE247E78B2A4'
 # Define all routes (URL)
 auth = HTTPBasicAuth()
 
-#print(os.environ.get('api_users'))
+# print(os.environ.get('api_users'))
 users = json.loads(os.environ.get('api_users'))
 
 mimetypes.add_type('image/svg+xml', '.svg')
@@ -67,6 +40,11 @@ def get_pw(username):
 @app.route('/', methods=['GET', 'POST'])  # / is the URL
 def index():
     return render_template('index.html')  # afficher la page index html
+
+@app.route('/api/docs')
+@auth.login_required
+def get_docs():
+    return render_template('swaggerui.html')
 
 
 @app.route('/day/<id>/', methods=['GET', 'POST'])  # / is the URL
@@ -95,6 +73,32 @@ def GetPlacesIDandDayId(place, dayid):
 
     return jsonify(requestReturn)
 
+@app.route('/v2/places/day/foodtruck/<foodtruckId>/', methods=['GET', 'POST'])
+@auth.login_required
+def GetPlacesFromFoodtruckId(foodtruckId):
+    with Model() as model:
+        requestReturn = model.GetPlacesFromFoodtruckId(foodtruckId)
+
+    response = Response(json.dumps(requestReturn, ensure_ascii=False).encode('utf8'), content_type="application/json; charset=utf-8")
+    return response
+
+@app.route('/v2/foodtruck/day/places/<placesId>/', methods=['GET', 'POST'])
+@auth.login_required
+def GetFoodtruckFromPlacesId(placesId):
+    with Model() as model:
+        requestReturn = model.getFoodtruckFromPlacesId(placesId)
+
+    response = Response(json.dumps(requestReturn, ensure_ascii=False).encode('utf8'), content_type="application/json; charset=utf-8")
+    return response
+
+@app.route('/v2/foodtruck/<id>/', methods=['GET', 'POST'])
+@auth.login_required
+def GetFoodtruckFromId(id):
+    with Model() as model:
+        requestReturn = model.getFoodtruckFromId(id)
+
+    response = Response(json.dumps(requestReturn, ensure_ascii=False).encode('utf8'), content_type="application/json; charset=utf-8")
+    return response
 
 @app.route('/v2/<latitude>/<longitude>/<dayid>/', methods=['GET', 'POST'])  # / is the URL
 @auth.login_required
@@ -117,11 +121,12 @@ def apiV2(latitude, longitude, dayid):
             if j > 0:
                 result += ','
 
-            requestPlId = model.getPlacebyid(pl_id)
+            requestPlId = model.getPlacebyid(pl_id, latitude, longitude)
             parsePlId = requestPlId[0]
-            result += str('{"pl_name":')
+
+            result += str('{"pl_name":"')
             result += str(parsePlId['pl_name'])
-            result += str(',"pl_id":')
+            result += str('","pl_id":')
             result += str(parsePlId['pl_id'])
             result += str(',"pl_address":"')
             result += str(parsePlId['pl_address'].replace('\r\n', ','))
@@ -129,17 +134,18 @@ def apiV2(latitude, longitude, dayid):
             result += str(parsePlId['pl_latitude'])
             result += str(',"pl_longitude":')
             result += str(parsePlId['pl_longitude'])
+            result += str(',"pl_website":"')
+            result += str(parsePlId['pl_website'])
+            result += str('","distance_meters":')
+            result += str(parsePlId['distance_meters'])
 
             result += str(',"foodtrucks":[')
 
             i = 0
             for content in group:
-                print(content)
                 if i > 0:
                     result += ','
-
-                result += '\t'
-                result += str(content)
+                result += str(content).replace("'", '"')
                 i += 1
 
             result += ']}'
@@ -147,13 +153,51 @@ def apiV2(latitude, longitude, dayid):
 
         result += "]"
 
-    response = app.response_class(
-        response=result,
-        status=200,
-        mimetype='application/json'
-    )
+    # json_string = json.dumps(result,ensure_ascii = False).strip('"')
+    # creating a Response object to set the content type and the encoding
+    response = Response(result, content_type="application/json; charset=utf-8")
     return response
 
+@app.route('/v2/places/<latitude>/<longitude>/')
+@auth.login_required
+def getPlaceBydistance(latitude, longitude):
+    latitude = float(latitude)
+    longitude = float(longitude)
+    with Model() as model:
+        requestPlId = model.getPlacebydistance(latitude, longitude)
+        print(requestPlId)
+
+    return jsonify(requestPlId)
+
+@app.route('/v2/places/<id>/')
+@auth.login_required
+def getPlaceById(id):
+
+    with Model() as model:
+        requestPlId = model.getPlaceVerifiedbyid(id)
+
+    parsePlId = requestPlId[0]
+
+    result1 = ""
+
+    result1 += str('[{"pl_name":"')
+    result1 += str(parsePlId['pl_name'])
+    result1 += str('","pl_id":')
+    result1 += str(parsePlId['pl_id'])
+    result1 += str(',"pl_address":"')
+    result1 += str(parsePlId['pl_address'].replace('\r\n', ','))
+    result1 += str('","pl_latitude":')
+    result1 += str(parsePlId['pl_latitude'])
+    result1 += str(',"pl_longitude":')
+    result1 += str(parsePlId['pl_longitude'])
+    result1 += str(',"pl_website":"')
+    result1 += str(parsePlId['pl_website'])
+    result1 += str('","verified":')
+    result1 += str(parsePlId['verified'])
+    result1 += str('}]')
+
+    response = Response(result1, content_type="application/json; charset=utf-8")
+    return response
 
 @app.route('/icon/<id>/<color>/')
 @app.route('/icons/<id>/<color>/')

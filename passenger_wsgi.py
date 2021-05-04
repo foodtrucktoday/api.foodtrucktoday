@@ -1,3 +1,7 @@
+#  Copyright (c) 2021 Romain ODET for Foodtruck Today
+#
+#
+
 import imp
 import os
 import sys
